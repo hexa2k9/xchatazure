@@ -15,14 +15,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA */
 
-@protocol TabOrWindowViewDelegate;
 @class SGTabViewItem;
 @interface TabOrWindowView : NSView
 #if MAC_OS_X_VERSION_MAX_ALLOWED > MAC_OS_X_VERSION_10_5
 <NSWindowDelegate>
 #endif
 {
-	id			   delegate;
+	id				delegate;	
 	NSWindow		*window;
 	SGTabViewItem	*tabViewItem;
 	NSString		*title;
@@ -37,12 +36,12 @@
 + (void) cycleWindow:(int) direction;
 + (BOOL) selectTabByIndex:(NSUInteger)index;
 + (void) link_delink;		// Frontmost view
-+ (void) updateGroupNameForServer:(struct server *) server;
++ (void) updateGroupNameForServer:(struct server *)server;
 
 + (void) preferencesChanged;
 + (void) setTransparency:(NSInteger)transparency;
 
-- (void) link_delink:(id) sender;
+- (void) link_delink:(id)sender;
 
 - (void) setServer:(struct server *) server;
 
@@ -50,7 +49,7 @@
 - (void) becomeWindowAndShow:(BOOL) show;
 - (void) becomeTab:(BOOL) tab andShow:(BOOL) show;
 
-- (void) makeKeyAndOrderFront:(id) sender;
+- (void) makeKeyAndOrderFront:(id)sender;
 
 - (void) close;
 - (void) setTabTitleColor:(NSColor *) color;
@@ -58,9 +57,4 @@
 
 - (void) setInitialFirstResponder:(NSView *) responder;
 
-@end
-
-@protocol TabOrWindowViewDelegate
-- (void) windowWillClose:(NSNotification *) notification;
-- (void) windowDidBecomeKey:(NSNotification *) notification;
 @end

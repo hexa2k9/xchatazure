@@ -110,7 +110,7 @@ static NSButtonCell *makeCloseCell ()
 	return copy;
 }
 
-- (void) doClose:(id) sender
+- (void) doClose:(id)sender
 {
 	[[closeCell target] performSelector:[closeCell action]];
 }
@@ -265,7 +265,7 @@ static NSButtonCell *makeCloseCell ()
 			
 	group = 0;
 	name = nil;
-	tabs = [[NSMutableArray arrayWithCapacity:0] retain];
+	tabs = [[NSMutableArray alloc] init];
 
 	return self;
 }
@@ -449,7 +449,7 @@ HIThemeSegmentPosition positionTable[2][2] =
 	[closeCell setTarget:targ];
 }
 
-- (void) doClose:(id) sender
+- (void) doClose:(id)sender
 {
 	[[closeCell target] performSelector:[closeCell action]];
 }
@@ -728,7 +728,7 @@ HIThemeSegmentPosition positionTable[2][2] =
 		[parent->outline reloadData];
 }
 
-- (void) doClose:(id) sender
+- (void) doClose:(id)sender
 {
 	// TODO
 	// This method shoud probably close the tab
@@ -738,13 +738,13 @@ HIThemeSegmentPosition positionTable[2][2] =
 		[[parent delegate] tabWantsToClose:self];
 }
 
-- (void) link_delink:(id) sender
+- (void) link_delink:(id)sender
 {
 	if (parent)
 		[[parent delegate] link_delink:self];
 }
 
-- (void) doit:(id) sender
+- (void) doit:(id)sender
 {
 	if (parent)
 	{
@@ -825,21 +825,16 @@ HIThemeSegmentPosition positionTable[2][2] =
 {
 	[super initWithFrame:frameRect];
 
-	self->selected_tab = nil;
-	self->tabs = [[NSMutableArray arrayWithCapacity:0] retain];
-	self->delegate = nil;
+	self->tabs = [[NSMutableArray alloc] init];
 	self->tabViewType = NSTopTabsBezelBorder;
-	self->hideClose = false;
-	self->hbox = nil;
-	self->outline = nil;
-	self->outline_width = 150;
-	self->groups = [[NSMutableArray arrayWithCapacity:5] retain];
+	self->xa_outline_width = 150;
+	self->groups = [[NSMutableArray alloc] initWithCapacity:5];
 	
 	[self setOrientation:SGBoxOrientationVertical];
 	[self setMinorDefaultJustification:SGBoxMinorJustificationFull];
-	[self setMajorInnerMargin:0];
-	[self setMajorOutterMargin:0];
-	[self setMinorMargin:0];
+	[self setMajorInnerMargin:0.0f];
+	[self setMajorOutterMargin:0.0f];
+	[self setMinorMargin:0.0f];
 	
 	[self setTabViewType:NSTopTabsBezelBorder];
 	
@@ -848,7 +843,6 @@ HIThemeSegmentPosition positionTable[2][2] =
 
 - (void) dealloc
 {
-	//[hbox release];	We don't explicitly retain this.
 	//[outline release];	We don't explicitly retain this.
 	[tabs release];
 	[groups release];
@@ -857,7 +851,7 @@ HIThemeSegmentPosition positionTable[2][2] =
 
 - (void) setOutlineWidth:(CGFloat) width
 {
-	self->outline_width = width;
+	self->xa_outline_width = width;
 	if (outline)
 	{
 		if (width < 50.0f)			// Just because
@@ -951,8 +945,9 @@ HIThemeSegmentPosition positionTable[2][2] =
 	
 	if (!hbox)
 	{
-		hbox = [[[SGWrapView alloc] initWithFrame:NSMakeRect(0.0f, 0.0f, 1.0f, 1.0f)] autorelease];
+		hbox = [[SGWrapView alloc] initWithFrame:NSMakeRect(0.0f, 0.0f, 1.0f, 1.0f)];
 		[self addSubview:hbox];
+		[hbox release];
 		
 		[self setOrder:0 forView:hbox];
 
@@ -985,7 +980,7 @@ HIThemeSegmentPosition positionTable[2][2] =
 	if (!outline)
 	{
 		ColorPalette *p = [[AquaChat sharedAquaChat] palette];
-		NSScrollView *outlineScroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect (0.0f, 0.0f, outline_width, 1.0f)] autorelease];
+		NSScrollView *outlineScroll = [[[NSScrollView alloc] initWithFrame:NSMakeRect (0.0f, 0.0f, xa_outline_width, 1.0f)] autorelease];
 		[self addSubview:outlineScroll];
 		
 		[self setOrder:0 forView:outlineScroll];
@@ -996,7 +991,7 @@ HIThemeSegmentPosition positionTable[2][2] =
 		SGTabViewOutlineCell *data_cell = [[SGTabViewOutlineCell alloc] initTextCell:@""];
 		
 		NSTableColumn *col = [[NSTableColumn alloc] initWithIdentifier:@""];
-		[col setWidth:outline_width];
+		[col setWidth:xa_outline_width];
 		[col setDataCell:data_cell];
 		[data_cell setFont:font];
 		[[col headerCell] setStringValue:@"Tabs"];
@@ -1171,14 +1166,14 @@ HIThemeSegmentPosition positionTable[2][2] =
 	return selected_tab;
 }
 
-- (void) selectNextTabViewItem:(id) sender
+- (void) selectNextTabViewItem:(id)sender
 {
 	NSInteger n = [self indexOfTabViewItem:[self selectedTabViewItem]] +1;
 	if (n < [self numberOfTabViewItems])
 		[self selectTabViewItemAtIndex:n];
 }
 
-- (void) selectPreviousTabViewItem:(id) sender
+- (void) selectPreviousTabViewItem:(id)sender
 {
 	NSInteger n = [self indexOfTabViewItem:[self selectedTabViewItem]] - 1;
 	if (n >= 0)
@@ -1288,7 +1283,7 @@ HIThemeSegmentPosition positionTable[2][2] =
 		CGFloat width = mouseLoc.x - where.x + outline_frame.size.width;
 		[self setOutlineWidth:width];
 
-		[[self delegate] tabViewDidResizeOutlne:outline_width];
+		[[self delegate] tabViewDidResizeOutlne:xa_outline_width];
 		
 		[[self window] invalidateCursorRectsForView:self];
 	}
