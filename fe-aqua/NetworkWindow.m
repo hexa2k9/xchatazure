@@ -393,10 +393,9 @@ static NSString *charsets[] =
 @implementation NetworkWindow
 @synthesize detailDrawer;
 
-- (void) showForSession:(struct session *) sess
+- (void) showForSession:(struct session *)aSession
 {
-	self->servlistSession = sess;
-	
+	self->sess = aSession;
 	[self makeKeyAndOrderFront:self];
 }
 
@@ -459,7 +458,6 @@ static NSString *charsets[] =
 	[self center];
 }
 
-#pragma mark -
 #pragma mark notification
 
 - (void) close
@@ -477,7 +475,6 @@ static NSString *charsets[] =
 	[charsetComboBox setObjectValue:[charsetComboBox objectValueOfSelectedItem]];
 }
 
-#pragma mark -
 #pragma mark IBAction
 
 - (void) showDetail:(id)sender
@@ -518,13 +515,13 @@ static NSString *charsets[] =
 	
 	NetworkItem *network = [filteredNetworks objectAtIndex:networkIndex];
 	
-	if (sender == connectNewButton || !is_session (servlistSession))
-		servlistSession = NULL;
+	if (sender == connectNewButton || !is_session (sess))
+		sess = NULL;
 	
 	network->ircNet->selected = [networkServerTableView selectedRow];	// This kinda stinks. Boo Peter!
 																		// Why can't it be an arg to
 																		// servlist_connect!?
-	servlist_connect (servlistSession, network->ircNet, true);
+	servlist_connect (sess, network->ircNet, true);
 	
 	[self orderOut:sender];
 }
@@ -768,7 +765,6 @@ static NSString *charsets[] =
 	[self tableViewSelectionDidChange:[NSNotification notificationWithName:@"dummy" object:networkTableView]];
 }
 
-#pragma mark -
 #pragma mark NSTableView Protocols
 
 #define DraggingDataType @"TemporaryDataType"
@@ -1054,7 +1050,7 @@ static NSString *charsets[] =
 	
 	NetworkItem *network = [filteredNetworks objectAtIndex:networkIndex];
 	
-	[networkTitleTextField setStringValue:[NSString stringWithFormat:NSLocalizedStringFromTable(@"Servers for %s", @"xchat", @""), network->name]];
+	[networkTitleTextField setStringValue:[NSString stringWithFormat:NSLocalizedStringFromTable(@"Servers for %s", @"xchat", @""), [network->name UTF8String]]];
 	
 	[self populateField:networkNicknameTextField fromNetwork:network];
 	[self populateField:networkNickname2TextField fromNetwork:network];

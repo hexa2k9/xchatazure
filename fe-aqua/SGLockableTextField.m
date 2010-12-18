@@ -18,8 +18,6 @@
 #import "SGGuiUtility.h"
 #import "SGLockableTextField.h"
 
-/////////////////////////////////////////////////////////////////////////////
-
 @implementation SGLockableTextFieldCell
 @synthesize lockImage;
 @synthesize unlockImage;
@@ -27,11 +25,10 @@
 
 - (id)initTextCell:(NSString *)aString
 {
-	self = [super initTextCell:aString];
-	
-	self.lockImage   = [NSImage imageNamed:@"lock.tiff"];
-	self.unlockImage = [NSImage imageNamed:@"unlock.tiff"];
-	
+	if ((self = [super initTextCell:aString]) != nil) {
+		self.lockImage   = [NSImage imageNamed:@"lock.tiff"];
+		self.unlockImage = [NSImage imageNamed:@"unlock.tiff"];
+	}
 	return self;
 }
 
@@ -62,7 +59,7 @@
  */
 - (BOOL) isLocked
 {
-	return ([lockCell state] == NSOffState ? YES : NO);
+	return [lockCell state] == NSOffState;
 }
 
 - (void) doLock:(id)sender
@@ -179,11 +176,9 @@
 
 @end
 
-/*
- * MARK: -
- */
+#pragma mark -
+
 @implementation SGLockableTextField
-@synthesize prevValue;
 
 + (Class) cellClass
 {
@@ -203,11 +198,6 @@
 	[self setCell:cell];
 	[cell release];
 	[self calcSize];
-}
-
-- (void) dealloc
-{
-	[super dealloc]; // ???: Do we really need to explicitly call super's dealloc?
 }
 
 - (id) initWithFrame:(NSRect)frameRect
@@ -234,10 +224,10 @@
  */
 - (void) textDidBeginEditing:(NSNotification *) aNotification
 {
-	id currentVal = [self objectValue];
-	if (currentVal == nil)	// This is pure paranoia. We depend on non-null prev
-		currentVal = @"";   	// values below. This guarantees it.
-	self.prevValue = [currentVal retain];
+	id currentValue = [self objectValue];
+	if (currentValue == nil)	// This is pure paranoia. We depend on non-null prev
+		currentValue = @"";	// values below. This guarantees it.
+	self->prevValue = [currentValue retain];
 	[super textDidBeginEditing:aNotification];
 }
 
@@ -250,8 +240,8 @@
 	// If the user presses return, we don't want the previous value anymore.
 	if (command == @selector (insertNewline:))
 	{
-		[self.prevValue release];
-		self.prevValue = nil;
+		[self->prevValue release];
+		self->prevValue = nil;
 	}
 	// NO means we didn't handle the key pressed, so the field editor should
 	// keep passing it through the responder chain until something does. This
@@ -269,13 +259,13 @@
 - (void) alertDidEnd:(NSAlert *)alert returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo
 {
 	if (returnCode == NSAlertThirdButtonReturn) { // Don't Save.
-		[self setObjectValue:self.prevValue];
+		[self setObjectValue:self->prevValue];
 		[self abortEditing];
 		[[self window] selectNextKeyView:self];
 		[[self cell] setLocked:YES];
 	} else if (returnCode == NSAlertFirstButtonReturn) { // OK
-		[self.prevValue release];
-		self.prevValue = nil;
+		[self->prevValue release];
+		self->prevValue = nil;
 		[NSApp sendAction:self.action to:self.target from:self];
 		[[self window] selectNextKeyView:self];
 	} else if (returnCode == NSAlertSecondButtonReturn) { // Cancel.
@@ -294,7 +284,7 @@
 - (BOOL) textShouldEndEditing:(NSText *) aTextObject
 {
 	// If it didn't change, just end editing.
-	if (!self.prevValue || [[self objectValue] isEqual:self.prevValue])
+	if (!self->prevValue || [[self objectValue] isEqual:self->prevValue])
 		return YES;
 	
 	// Otherwise, since the text changed but the user didn't hit return, put up
@@ -315,8 +305,8 @@
 
 - (void) textDidEndEditing:(NSNotification *) notif
 {
-	[self.prevValue release];
-	self.prevValue = nil;
+	[self->prevValue release];
+	self->prevValue = nil;
 	[[self cell] setLocked:YES];
 	[super textDidEndEditing:notif];
 }

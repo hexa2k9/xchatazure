@@ -17,24 +17,7 @@
 
 #import "SGRowColView.h"
 
-//////////////////////////////////////////////////////////////////////
-
 @implementation SGRowColView
-
-- (id) initWithFrame:(NSRect) frameRect
-{
-	[super initWithFrame:frameRect];
-	
-	self->rows = 0;
-	self->cols = 0;
-	
-	return self;
-}
-
-- (void) dealloc
-{
-	[super dealloc];
-}
 
 - (void) do_layout
 {

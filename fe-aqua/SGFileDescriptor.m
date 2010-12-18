@@ -15,24 +15,18 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA */
 
-//////////////////////////////////////////////////////////////////////
-
 #include <pthread.h>
 #import "SGFileDescriptor.h"
 
-//////////////////////////////////////////////////////////////////////
-
 @class SGFileDescriptorPrivate;
 
-static pthread_mutex_t	sgfd_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t	SGFileDescriptorMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t	sgfd_dispatch_complete = PTHREAD_COND_INITIALIZER;
-static NSMutableArray  *sgfdArray;
-static CFRunLoopRef		sgfdRunLoop;
-static CFRunLoopSourceRef sgfdRunLoopSource;
+static NSMutableArray  *SGFileDescriptors;
+static CFRunLoopRef		SGFileDescriptorRunLoop;
+static CFRunLoopSourceRef SGFileDescriptorRunLoopSource;
 static int				sgfd_pipes [2];
-static SGFileDescriptorPrivate *sgfd_dispatch_list;
-
-//////////////////////////////////////////////////////////////////////
+static SGFileDescriptorPrivate *sgfd_dispatch_list;	// linked list
 
 @interface SGFileDescriptorPrivate : SGFileDescriptor
 {
@@ -55,9 +49,7 @@ static SGFileDescriptorPrivate *sgfd_dispatch_list;
 
 @end
 
-//////////////////////////////////////////////////////////////////////
-@implementation SGFileDescriptorPrivate
-@synthesize fd,mode;
+#pragma mark -
 
 static void sgfd_dispatch (void *args)
 {
@@ -68,44 +60,42 @@ static void sgfd_dispatch (void *args)
 	// We could lock the mutex but then we would either have to make
 	// the mutex recursive or create a separate mutex just for this
 	// list.  Either way, it's not really needed.
-
+	
 	while (sgfd_dispatch_list)
 	{
 		[sgfd_dispatch_list dispatch];
-
+		
 		SGFileDescriptorPrivate *prev = sgfd_dispatch_list;
 		sgfd_dispatch_list = sgfd_dispatch_list->next;
-
+		
 		[prev release];
 	}
-
+	
 	// sgfd_main_loop is waiting for us to finish.. cut him loose..
-
-	pthread_mutex_lock (&sgfd_mtx);
+	
+	pthread_mutex_lock (&SGFileDescriptorMutex);
 	pthread_cond_signal (&sgfd_dispatch_complete);
-	pthread_mutex_unlock (&sgfd_mtx);
+	pthread_mutex_unlock (&SGFileDescriptorMutex);
 }
 
 static void *sgfd_main_loop (void *args)
 {
-	pthread_mutex_lock (&sgfd_mtx);
+	pthread_mutex_lock (&SGFileDescriptorMutex);
 	
 	for (;;)
 	{
 		fd_set rfds, wfds, efds;
-
+		
 		FD_ZERO (&rfds);
 		FD_ZERO (&wfds);
 		FD_ZERO (&efds);
-
+		
 		FD_SET (sgfd_pipes[0], &rfds);
-
+		
 		int max = sgfd_pipes [0];
-
-		for (NSUInteger i = 0; i < [sgfdArray count]; i++)
+		
+		for (SGFileDescriptorPrivate *sgfd in SGFileDescriptors)
 		{
-			SGFileDescriptorPrivate *sgfd = [sgfdArray objectAtIndex:i];
-			
 			fd_set *the_set = NULL;
 			switch ([sgfd mode])
 			{
@@ -116,79 +106,80 @@ static void *sgfd_main_loop (void *args)
 			
 			if (the_set)
 				FD_SET ([sgfd fd], the_set);
-
+			
 			if ([sgfd fd] > max)
 				max = [sgfd fd];
 		}
-
-		pthread_mutex_unlock (&sgfd_mtx);
+		
+		pthread_mutex_unlock (&SGFileDescriptorMutex);
 		
 		int n = select (max + 1, &rfds, &wfds, &efds, NULL);
 		
 		//if (n < 0)
-			//perror ("select");
-
-		pthread_mutex_lock (&sgfd_mtx);
+		//perror ("select");
+		
+		pthread_mutex_lock (&SGFileDescriptorMutex);
 		
 		if (n > 0)
 		{
-			for (NSUInteger i = 0; i < [sgfdArray count]; i++)
+			for (SGFileDescriptorPrivate *sgfd in SGFileDescriptors)
 			{
-				SGFileDescriptorPrivate *sgfd = [sgfdArray objectAtIndex:i];
-
 				bool fire = false;
-			
+				
 				switch ([sgfd mode])
 				{
 					case SGFileDescriptorRead: fire = FD_ISSET ([sgfd fd], &rfds); break;
 					case SGFileDescriptorWrite: fire = FD_ISSET ([sgfd fd], &wfds); break;
 					case SGFileDescriptorExcep: fire = FD_ISSET ([sgfd fd], &efds); break;
 				}
-
+				
 				if (fire)
 				{
 					sgfd->next = sgfd_dispatch_list;
 					sgfd_dispatch_list = sgfd;
-
+					
 					// Retain this guy just in case he gets removed
 					// from the list during some other descriptor callback. 
-
+					
 					[sgfd retain];
 				}
 			}
-
+			
 			if (FD_ISSET (sgfd_pipes [0], &rfds))
 			{
 				char ch;
 				read (sgfd_pipes [0], &ch, 1);
 			}
-
+			
 			if (sgfd_dispatch_list)
 			{
-				CFRunLoopSourceSignal (sgfdRunLoopSource);
-				CFRunLoopWakeUp (sgfdRunLoop);
-
-				pthread_cond_wait (&sgfd_dispatch_complete, &sgfd_mtx);
+				CFRunLoopSourceSignal (SGFileDescriptorRunLoopSource);
+				CFRunLoopWakeUp (SGFileDescriptorRunLoop);
+				
+				pthread_cond_wait (&sgfd_dispatch_complete, &SGFileDescriptorMutex);
 			}
 		}
 	}
-
-	pthread_mutex_unlock (&sgfd_mtx);
-
+	
+	pthread_mutex_unlock (&SGFileDescriptorMutex);
+	
 	return NULL;
 }
 
+@implementation SGFileDescriptorPrivate
+@synthesize fd,mode;
+
 + (void) initialize {
-	sgfdRunLoop = [[NSRunLoop currentRunLoop] getCFRunLoop];
-	sgfdArray = [[NSMutableArray alloc] init];
+	SGFileDescriptorRunLoop = [[NSRunLoop currentRunLoop] getCFRunLoop];
+	SGFileDescriptors = [[NSMutableArray alloc] init];
 	
 	pipe (sgfd_pipes);
 	
 	CFRunLoopSourceContext context = { 0, 0, 0, 0, 0, 0, 0, 0, 0, sgfd_dispatch };
 	
-	sgfdRunLoopSource = CFRunLoopSourceCreate (NULL, 0, &context);
+	SGFileDescriptorRunLoopSource = CFRunLoopSourceCreate (NULL, 0, &context);
 	
-	CFRunLoopAddSource (sgfdRunLoop, sgfdRunLoopSource, kCFRunLoopCommonModes);
+	CFRunLoopAddSource (SGFileDescriptorRunLoop, SGFileDescriptorRunLoopSource, kCFRunLoopCommonModes);
 	
 	pthread_t thrd;
 	pthread_create (&thrd, NULL, sgfd_main_loop, NULL);
@@ -196,14 +187,14 @@ static void *sgfd_main_loop (void *args)
 
 + (void) sgfd_add:(SGFileDescriptor *)sgfd
 {
-	pthread_mutex_lock (&sgfd_mtx);
+	pthread_mutex_lock (&SGFileDescriptorMutex);
 	
-	[sgfdArray addObject:sgfd];
+	[SGFileDescriptors addObject:sgfd];
 	
 	char ch = 0;
 	write (sgfd_pipes [1], &ch, 1);
 	
-	pthread_mutex_unlock (&sgfd_mtx);
+	pthread_mutex_unlock (&SGFileDescriptorMutex);
 }
 
 - (SGFileDescriptor *)initWithFd:(int)the_fd mode:(NSInteger)the_mode target:(id)the_target 
@@ -232,16 +223,16 @@ static void *sgfd_main_loop (void *args)
 {
 	enable = false;
 	
-	pthread_mutex_lock (&sgfd_mtx);
+	pthread_mutex_lock (&SGFileDescriptorMutex);
+	
+	[SGFileDescriptors removeObjectIdenticalTo:self];
 		
-	[sgfdArray removeObjectIdenticalTo:self];
-		
-	pthread_mutex_unlock (&sgfd_mtx);
+	pthread_mutex_unlock (&SGFileDescriptorMutex);
 }
 
 @end
 
-//////////////////////////////////////////////////////////////////////
+#pragma mark -
 
 @implementation SGFileDescriptor
 
