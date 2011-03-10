@@ -290,7 +290,9 @@ fe_new_window (struct session *sess, int focus)
 void
 fe_print_text (struct session *sess, char *text, time_t stamp)
 {
-	[sess->gui->chatWindow printText:[NSString stringWithUTF8String:text] stamp:stamp];
+	NSString *string = [NSString stringWithUTF8String:text];
+	if ( string == nil ) return;
+	[sess->gui->chatWindow printText:string stamp:stamp];
 }
 
 void
@@ -811,8 +813,7 @@ fe_progressbar_start (struct session *sess)
 void
 fe_progressbar_end (struct server *serv)
 {
-	[AquaChat forEachSessionOnServer:serv
-			 performSelector:@selector (progressbarEnd)];
+	[AquaChat forEachSessionOnServer:serv performSelector:@selector (progressbarEnd)];
 }
 
 void
