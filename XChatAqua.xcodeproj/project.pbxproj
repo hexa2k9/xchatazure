@@ -302,7 +302,7 @@
 		0F2FEF770E1FB16600DE4D41 /* Copy Plugins */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "X-Chat Aqua.app/Contents/PlugIns";
+			dstPath = "XChat Azure.app/Contents/PlugIns";
 			dstSubfolderSpec = 16;
 			files = (
 				0F8F08330E1FE07C00359159 /* tcl.bundle in Copy Plugins */,
